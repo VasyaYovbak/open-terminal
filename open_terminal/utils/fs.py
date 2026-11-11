@@ -207,9 +207,9 @@ class UserFS:
     async def _chown(self, path: str) -> None:
         """Fix ownership of *path* to the provisioned user.
 
-        Also sets group-write permission so the server process (which is
-        in the provisioned user's group) can overwrite the file on
-        subsequent writes.
+        Also grants group read and write so the server process (which is
+        in the provisioned user's group) can read and overwrite the file,
+        including files created with restrictive temporary-file permissions.
         """
         if self.username:
             await asyncio.to_thread(
@@ -219,7 +219,7 @@ class UserFS:
             )
             await asyncio.to_thread(
                 subprocess.run,
-                ["sudo", "chmod", "g+w", path],
+                ["sudo", "chmod", "g+rw", path],
                 check=True, capture_output=True,
             )
 
