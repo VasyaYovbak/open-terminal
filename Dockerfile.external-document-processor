@@ -1,0 +1,8 @@
+FROM ghcr.io/open-webui/open-terminal:0.17.7
+
+USER root
+COPY pyproject.toml README.md /app/
+COPY open_terminal /app/open_terminal
+RUN pip install --no-cache-dir --no-deps /app \
+    && sed -i '1s|.*|#!/usr/local/bin/python3-ot|' "$(which open-terminal)"
+USER user

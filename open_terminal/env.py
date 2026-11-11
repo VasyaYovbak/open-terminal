@@ -70,6 +70,12 @@ BINARY_FILE_MIME_PREFIXES = [
     if p.strip()
 ]
 
+# Optional synchronous document-to-Markdown service for binary files.
+DOCUMENT_PROCESSOR_URL = os.environ.get(
+    "OPEN_TERMINAL_DOCUMENT_PROCESSOR_URL",
+    config.get("document_processor_url", ""),
+).strip()
+
 MAX_TERMINAL_SESSIONS = int(
     os.environ.get(
         "OPEN_TERMINAL_MAX_SESSIONS",

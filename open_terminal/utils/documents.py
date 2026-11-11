@@ -7,8 +7,31 @@ and returns the document's text as a plain string.
 All libraries used are permissively licensed (MIT / BSD).
 """
 
+import os
 import zipfile
 from functools import wraps
+
+
+async def extract_external_document(url: str, path: str, mime: str) -> str:
+    """Send a binary file to a synchronous external Markdown processor."""
+    import httpx
+
+    try:
+        with open(path, "rb") as source:
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                response = await client.post(
+                    url, files={"file": (os.path.basename(path), source, mime)}
+                )
+                response.raise_for_status()
+                result = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise ValueError(f"Document processor request failed: {exc}") from exc
+
+    markdown = result.get("markdown") if isinstance(result, dict) else None
+    if not isinstance(result, dict) or result.get("status") != "done" or not isinstance(markdown, str):
+        detail = result.get("error") if isinstance(result, dict) else None
+        raise ValueError(str(detail) if detail else "Document processor did not return Markdown")
+    return markdown
 
 
 def text_extractor(separator="\n"):

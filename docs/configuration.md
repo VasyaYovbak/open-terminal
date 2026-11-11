@@ -19,6 +19,7 @@ api_key = "sk-my-secret-key"
 cors_allowed_origins = "*"
 log_dir = "/var/log/open-terminal"
 binary_mime_prefixes = "image,audio"
+# document_processor_url = "https://example.com/process"
 execute_timeout = 5  # seconds to wait for command output (unset by default)
 file_browser_root = "home"
 enable_browser = true
@@ -39,6 +40,26 @@ You can also point to a specific config file:
 ```bash
 open-terminal run --config /path/to/my-config.toml
 ```
+
+## External Document Processor
+
+Set `OPEN_TERMINAL_DOCUMENT_PROCESSOR_URL` (or `document_processor_url` in TOML)
+to a synchronous endpoint that accepts a multipart `file` and returns
+`{"status":"done","markdown":"..."}`. When configured, `GET /files/read` sends
+binary files, including images, to that endpoint; plain text is read locally.
+Processor failures return HTTP 502 without falling back to local extractors.
+When unset, Open Terminal uses its built-in extractors and binary MIME settings.
+File contents are sent to the configured service; use a trusted HTTPS endpoint
+or a trusted private network. Restart the server after changing this setting.
+
+To build the full image with this integration:
+
+```sh
+docker build -f Dockerfile.external-document-processor -t darkstyle/open-terminal:with-external-document-processor .
+```
+
+The processor URL must be reachable from inside the container; `localhost` there
+refers to the container itself, not the Docker host.
 
 ## Use your running Chrome
 

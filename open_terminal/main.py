@@ -34,7 +34,7 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from open_terminal.agents import discovery as agent_discovery, sessions as agent_sessions
 from open_terminal.agents.router import router as agent_router
 from open_terminal.dependencies import get_filesystem, matches_api_key, verify_api_key
-from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_BROWSER, ENABLE_DESKTOP, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
+from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, DOCUMENT_PROCESSOR_URL, ENABLE_BROWSER, ENABLE_DESKTOP, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
 from open_terminal.env import sanitized_environ
 from open_terminal.utils.runner import PipeRunner, ProcessRunner, create_runner, read_pty, write_pty, PtyRunner
 from open_terminal.utils.fs import UserFS, FullFileResponse as FileResponse, TemporaryFileResponse, text_file_response, line_range_offsets
@@ -906,6 +906,22 @@ async def read_file(
     from open_terminal.utils.documents import EXTRACTORS
 
     mime = mimetypes.guess_type(target)[0] or "application/octet-stream"
+    if DOCUMENT_PROCESSOR_URL:
+        from open_terminal.utils.documents import extract_external_document
+
+        try:
+            markdown = await extract_external_document(DOCUMENT_PROCESSOR_URL, target, mime)
+        except ValueError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        fd, extracted_path = tempfile.mkstemp(suffix=".txt")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as output:
+                output.write(markdown)
+            return await text_file_response(extracted_path, target, start_line, end_line, False)
+        finally:
+            os.unlink(extracted_path)
+
     if any(kind and mime == kind or suffix and target.lower().endswith(suffix) for kind, suffix, _ in EXTRACTORS):
         fd, extracted_path = tempfile.mkstemp(suffix=".txt")
         os.close(fd)
